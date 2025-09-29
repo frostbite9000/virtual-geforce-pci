@@ -107,21 +107,19 @@ virtual_geforce_pci.o: \
  include/linux/static_call_types.h include/linux/instruction_pointer.h \
  include/linux/wordpart.h include/linux/bitmap.h include/linux/find.h \
  include/linux/string.h include/linux/overflow.h \
- include/uapi/linux/string.h include/linux/fortify-string.h \
- include/linux/bitfield.h include/linux/bug.h arch/x86/include/asm/bug.h \
- include/linux/instrumentation.h include/asm-generic/bug.h \
- include/linux/bitmap-str.h include/linux/cpumask_types.h \
- include/linux/atomic.h arch/x86/include/asm/atomic.h \
- arch/x86/include/asm/cmpxchg.h arch/x86/include/asm/cmpxchg_64.h \
- arch/x86/include/asm/atomic64_64.h \
+ include/uapi/linux/string.h include/linux/bitmap-str.h \
+ include/linux/cpumask_types.h include/linux/atomic.h \
+ arch/x86/include/asm/atomic.h arch/x86/include/asm/cmpxchg.h \
+ arch/x86/include/asm/cmpxchg_64.h arch/x86/include/asm/atomic64_64.h \
  include/linux/atomic/atomic-arch-fallback.h \
  include/linux/atomic/atomic-long.h \
- include/linux/atomic/atomic-instrumented.h include/linux/gfp_types.h \
- include/linux/numa.h arch/x86/include/uapi/asm/msr.h \
- include/uapi/linux/ioctl.h arch/x86/include/generated/uapi/asm/ioctl.h \
- include/asm-generic/ioctl.h include/uapi/asm-generic/ioctl.h \
- arch/x86/include/asm/shared/msr.h include/linux/percpu.h \
- include/linux/alloc_tag.h include/linux/codetag.h \
+ include/linux/atomic/atomic-instrumented.h include/linux/bug.h \
+ arch/x86/include/asm/bug.h include/linux/instrumentation.h \
+ include/asm-generic/bug.h include/linux/gfp_types.h include/linux/numa.h \
+ arch/x86/include/uapi/asm/msr.h include/uapi/linux/ioctl.h \
+ arch/x86/include/generated/uapi/asm/ioctl.h include/asm-generic/ioctl.h \
+ include/uapi/asm-generic/ioctl.h arch/x86/include/asm/shared/msr.h \
+ include/linux/percpu.h include/linux/alloc_tag.h include/linux/codetag.h \
  include/linux/preempt.h arch/x86/include/asm/preempt.h \
  include/linux/smp.h include/linux/smp_types.h include/linux/llist.h \
  include/linux/thread_info.h include/linux/restart_block.h \
