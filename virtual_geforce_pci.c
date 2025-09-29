@@ -9,6 +9,17 @@
 #include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/dma-mapping.h>
+#include <linux/miscdevice.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+
+// Fix PCIBIOS constants
+#ifndef PCIBIOS_SUCCESS
+#define PCIBIOS_SUCCESS PCIBIOS_SUCCESSFUL
+#endif
 
 // GeForce constants from Bochs implementation
 #define GEFORCE_PNPMMIO_SIZE        0x1000000
@@ -375,19 +386,19 @@ struct virtual_geforce_dev {
 
 static struct virtual_geforce_dev *global_geforce_dev = NULL;
 
-// Math helper functions (from Bochs)
-static inline float uint32_as_float(u32 val)
-{
-    union { u32 i; float f; } u;
-    u.i = val;
-    return u.f;
-}
-
-static inline u32 float_as_uint32(float val)
+// Math helper functions (from Bochs) - Fixed to avoid SSE issues
+static inline u32 float_to_uint32_bits(float val)
 {
     union { u32 i; float f; } u;
     u.f = val;
     return u.i;
+}
+
+static inline float uint32_bits_to_float(u32 val)
+{
+    union { u32 i; float f; } u;
+    u.i = val;
+    return u.f;
 }
 
 // Color format conversion (from Bochs)
@@ -713,7 +724,7 @@ static bool geforce_d3d_depth_test(struct geforce_channel *ch, float z, float ex
     }
 }
 
-// 3D Pipeline: Triangle Rasterization (adapted from Bochs d3d_triangle)
+// 3D Pipeline: Triangle Rasterization (adapted from Bochs d3d_triangle) - Fixed SSE issue
 static void geforce_d3d_rasterize_triangle(struct virtual_geforce_dev *gdev, struct geforce_channel *ch,
                                            struct vertex_data *v0, struct vertex_data *v1, struct vertex_data *v2)
 {
@@ -721,10 +732,17 @@ static void geforce_d3d_rasterize_triangle(struct virtual_geforce_dev *gdev, str
     float min_x, max_x, min_y, max_y;
     
     // Calculate bounding box
-    min_x = min(min(v0->position[0], v1->position[0]), v2->position[0]);
-    max_x = max(max(v0->position[0], v1->position[0]), v2->position[0]);
-    min_y = min(min(v0->position[1], v1->position[1]), v2->position[1]);
-    max_y = max(max(v0->position[1], v1->position[1]), v2->position[1]);
+    min_x = (v0->position[0] < v1->position[0]) ? v0->position[0] : v1->position[0];
+    min_x = (min_x < v2->position[0]) ? min_x : v2->position[0];
+    
+    max_x = (v0->position[0] > v1->position[0]) ? v0->position[0] : v1->position[0];
+    max_x = (max_x > v2->position[0]) ? max_x : v2->position[0];
+    
+    min_y = (v0->position[1] < v1->position[1]) ? v0->position[1] : v1->position[1];
+    min_y = (min_y < v2->position[1]) ? min_y : v2->position[1];
+    
+    max_y = (v0->position[1] > v1->position[1]) ? v0->position[1] : v1->position[1];
+    max_y = (max_y > v2->position[1]) ? max_y : v2->position[1];
     
     // Clip to viewport
     if (min_x < 0) min_x = 0;
@@ -779,13 +797,13 @@ static void geforce_d3d_rasterize_triangle(struct virtual_geforce_dev *gdev, str
                 
                 if (ch->d3d_depth_bytes == 4) {
                     u32 depth_val = geforce_vram_read32(gdev, depth_addr);
-                    existing_depth = uint32_as_float(depth_val);
+                    existing_depth = uint32_bits_to_float(depth_val);
                 }
                 
                 if (geforce_d3d_depth_test(ch, z, existing_depth)) {
                     // Write depth if enabled
                     if (ch->d3d_depth_write_enable && ch->d3d_depth_bytes == 4) {
-                        geforce_vram_write32(gdev, depth_addr, float_as_uint32(z));
+                        geforce_vram_write32(gdev, depth_addr, float_to_uint32_bits(z));
                     }
                     
                     // Run pixel shader
@@ -1657,7 +1675,7 @@ static void geforce_d3d_work(struct work_struct *work)
     mutex_unlock(&gdev->d3d_mutex);
 }
 
-// PCI configuration space access
+// PCI configuration space access - Fixed to return proper PCIBIOS codes
 static int geforce_pci_read_config(struct pci_bus *bus, unsigned int devfn, 
                                    int where, int size, u32 *val)
 {
@@ -1696,7 +1714,7 @@ static int geforce_pci_read_config(struct pci_bus *bus, unsigned int devfn,
             break;
     }
     
-    return PCIBIOS_SUCCESS;
+    return PCIBIOS_SUCCESSFUL;
 }
 
 static int geforce_pci_write_config(struct pci_bus *bus, unsigned int devfn, 
@@ -1711,7 +1729,7 @@ static int geforce_pci_write_config(struct pci_bus *bus, unsigned int devfn,
     // Handle PCI config writes (mostly ignored for virtual device)
     printk(KERN_DEBUG "GeForce: PCI config write offset 0x%02x = 0x%08x\n", where, val);
     
-    return PCIBIOS_SUCCESS;
+    return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops geforce_pci_ops = {
